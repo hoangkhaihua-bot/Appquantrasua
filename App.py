@@ -354,7 +354,8 @@ with tab_dashboard:
             }),
             use_container_width=True,
             hide_index=True
-)ỘT PHẢI: GIỎ HÀNG -------------------
+)
+        #--------------CỘT PHẢI: GIỎ HÀNG -------------------
     with col_right:
         st.subheader("🛒 Giỏ Hàng Mua Sắm")
         
