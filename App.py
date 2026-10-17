@@ -3,7 +3,7 @@ import os
 import re
 import unicodedata
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import streamlit as st
@@ -14,6 +14,9 @@ st.set_page_config(
     page_icon="🧋",
     layout="wide",
 )
+
+# Server chạy giờ UTC -> ép về giờ Việt Nam (UTC+7, không có giờ mùa hè)
+VN_TZ = timezone(timedelta(hours=7))
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HISTORY_FILE = os.path.join(BASE_DIR, "order_history.csv")
@@ -347,7 +350,7 @@ with tab_order:
                 )
 
             if st.button("💳 TẠO ĐƠN & QUÉT MÃ QR", type="primary", **FULL_BTN):
-                now = datetime.now()
+                now = datetime.now(VN_TZ)
                 customer = customer_name.strip() if customer_name.strip() else "Khách vãng lai"
                 st.session_state.invoice = {
                     "time": now.strftime("%d/%m/%Y %H:%M:%S"),
@@ -455,5 +458,4 @@ with tab_dashboard:
             ),
             hide_index=True,
             **FULL_DF,
-        )
-        
+)
