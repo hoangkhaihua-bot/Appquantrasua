@@ -203,6 +203,7 @@ def show_payment_qr(inv: dict) -> None:
     )
     st.success("🎉 Đã tạo đơn! Quét mã QR để chuyển khoản:")
     st.image(qr_url, caption="Mã QR Agribank Tự Động", **FULL_IMG)
+    st.link_button("🔗 Mở mã QR ở tab mới (nếu ảnh không hiện)", qr_url)
     st.markdown("### 📲 Thông Tin Chuyển Khoản")
     st.write("🏦 **Ngân hàng:** Agribank")
     st.write(f"💳 **Số tài khoản:** `{ACCOUNT_NO}`")
@@ -260,7 +261,7 @@ with tab_order:
                 with col_pic:
                     st.image(tea_info["image"], caption=selected_tea, **FULL_IMG)
                 with col_opt:
-                    quantity = st.number_input("🔢 Số lượng:", min_value=1, max_value=50, value=1, step=1)
+                    quantity = st.number_input("🔢 Số lượng:", min_value=1, value=1, step=1)
                     selected_size = st.selectbox("📏 Size:", list(SIZE_OPTIONS.keys()))
                     selected_sugar = st.selectbox("🍬 Đường:", SUGAR_LEVELS)
                     selected_ice = st.selectbox("🧊 Đá:", ICE_LEVELS)
@@ -454,4 +455,5 @@ with tab_dashboard:
             ),
             hide_index=True,
             **FULL_DF,
-)
+        )
+        
