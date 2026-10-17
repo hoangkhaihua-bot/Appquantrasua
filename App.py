@@ -6,7 +6,7 @@ import os
 # ---------------------------------------------------------
 # THÔNG TIN TÀI KHOẢN NGÂN HÀNG
 # ---------------------------------------------------------
-BANK_ID = "AGR"            # Mã ngân hàng (MB, VCB, TCB, ACB, TPB, ICB,...)
+BANK_ID = "VBA"            # Mã ngân hàng (MB, VCB, TCB, ACB, TPB, ICB,...)
 ACCOUNT_NO = "8888889040806"   # Thay bằng số tài khoản của bạn
 ACCOUNT_NAME = "HUA HOANG KHAI" # Thay bằng tên chủ tài khoản (viết hoa không dấu)
 
