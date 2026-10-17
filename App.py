@@ -19,8 +19,8 @@ st.set_page_config(
     layout="wide"
 )
 
-if os.path.exists("logo.png"):
-    st.image("logo.png")
+if os.path.exists("file_00000000d3fc8207810f0b04c88661e1.png"):
+    st.image("file_00000000d3fc8207810f0b04c88661e1.png")
 
 MENU_TEA = {
     "Trà Sữa Truyền Thống": 30000,
