@@ -2,13 +2,14 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+import urllib.parse
 
 # ---------------------------------------------------------
 # THÔNG TIN TÀI KHOẢN NGÂN HÀNG
 # ---------------------------------------------------------
-BANK_ID = "VBA"            # Mã ngân hàng (MB, VCB, TCB, ACB, TPB, ICB,...)
-ACCOUNT_NO = "8888889040806"   # Thay bằng số tài khoản của bạn
-ACCOUNT_NAME = "HUA HOANG KHAI" # Thay bằng tên chủ tài khoản (viết hoa không dấu)
+BANK_ID = "VBA"                # Mã ngân hàng Agribank cho VietQR là VBA
+ACCOUNT_NO = "8888889040806"   # Số tài khoản
+ACCOUNT_NAME = "HUA HOANG KHAI"# Tên chủ tài khoản
 
 # ---------------------------------------------------------
 # CẤU HÌNH TRANG & CƠ SỞ DỮ LIỆU SẢN PHẨM
@@ -181,19 +182,22 @@ if st.session_state.get("invoice_paid") and st.session_state.cart:
     st.success("🎉 Tạo đơn thành công! Vui lòng quét mã QR bên dưới để thanh toán:")
 
     # 1. TẠO MÃ QR VIETQR TỰ ĐỘNG
-    add_info = f"TT {customer_name if customer_name else 'Khach'}"
-    qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-compact2.png?amount={final_price}&addInfo={add_info}&accountName={ACCOUNT_NAME}"
+    add_info_text = f"TT {customer_name if customer_name else 'Khach'}"
+    acc_name_encoded = urllib.parse.quote(ACCOUNT_NAME)
+    add_info_encoded = urllib.parse.quote(add_info_text)
+
+    qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-compact2.png?amount={final_price}&addInfo={add_info_encoded}&accountName={acc_name_encoded}"
 
     col_qr1, col_qr2 = st.columns([1, 2])
     with col_qr1:
-        st.image(qr_url, caption="Mã QR thanh toán chuyển khoản", use_column_width=True)
+        st.image(qr_url, caption="Mã QR thanh toán chuyển khoản", use_container_width=True)
     with col_qr2:
         st.markdown("### 📲 Thông tin chuyển khoản")
-        st.write(f"**Ngân hàng:** {BANK_ID}")
+        st.write(f"**Ngân hàng:** Agribank ({BANK_ID})")
         st.write(f"**Số tài khoản:** `{ACCOUNT_NO}`")
         st.write(f"**Tên tài khoản:** {ACCOUNT_NAME}")
         st.write(f"**Số tiền:** `{final_price:,} VNĐ`")
-        st.write(f"**Nội dung chuyển khoản:** `{add_info}`")
+        st.write(f"**Nội dung chuyển khoản:** `{add_info_text}`")
 
     # 2. HÓA ĐƠN CHI TIẾT
     invoice_box = st.container(border=True)
