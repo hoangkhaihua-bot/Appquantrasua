@@ -162,8 +162,6 @@ def to_ascii(text: str, max_len: int = 25) -> str:
     return text[:max_len] or "Khach"
 
 
-if "order_history" not in st.session_state:
-    st.session_state.order_history = load_history()
 
 
 def clean_topping(label: str) -> str:
@@ -191,6 +189,27 @@ def create_txt_invoice(inv: dict) -> str:
     content += f"TỔNG THANH TOÁN: {inv['final']:,} VNĐ\n"
     content += f"{line}\n{'Cảm ơn bạn đã ủng hộ Mr Khải Lốc Xoáy! 💕':^40}\n"
     return content
+
+
+def show_payment_qr(inv: dict) -> None:
+    """Hiện mã QR + thông tin chuyển khoản ngay dưới nút tạo đơn."""
+    raw_name = inv["customer"] if inv["customer"] != "Khách vãng lai" else "Khach"
+    add_info_text = f"TT {to_ascii(raw_name)}"
+    qr_url = (
+        f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-compact2.png"
+        f"?amount={inv['final']}"
+        f"&addInfo={urllib.parse.quote(add_info_text)}"
+        f"&accountName={urllib.parse.quote(ACCOUNT_NAME)}"
+    )
+    st.success("🎉 Đã tạo đơn! Quét mã QR để chuyển khoản:")
+    st.image(qr_url, caption="Mã QR Agribank Tự Động", **FULL_IMG)
+    st.markdown("### 📲 Thông Tin Chuyển Khoản")
+    st.write("🏦 **Ngân hàng:** Agribank")
+    st.write(f"💳 **Số tài khoản:** `{ACCOUNT_NO}`")
+    st.write(f"👤 **Chủ tài khoản:** {ACCOUNT_NAME}")
+    st.write(f"💰 **Số tiền thanh toán:** `{inv['final']:,} VNĐ`")
+    st.write(f"📝 **Nội dung chuyển khoản:** `{add_info_text}`")
+    st.caption("⬇️ Kéo xuống dưới để xem hóa đơn chi tiết và tải file.")
 
 
 # ---------------------------------------------------------
@@ -241,7 +260,7 @@ with tab_order:
                 with col_pic:
                     st.image(tea_info["image"], caption=selected_tea, **FULL_IMG)
                 with col_opt:
-                    quantity = st.number_input("🔢 Số lượng:", min_value=1, value=1, step=1)
+                    quantity = st.number_input("🔢 Số lượng:", min_value=1, max_value=50, value=1, step=1)
                     selected_size = st.selectbox("📏 Size:", list(SIZE_OPTIONS.keys()))
                     selected_sugar = st.selectbox("🍬 Đường:", SUGAR_LEVELS)
                     selected_ice = st.selectbox("🧊 Đá:", ICE_LEVELS)
@@ -339,7 +358,9 @@ with tab_order:
                     "discount": int(discount),
                     "final": final_price,
                 }
-                st.session_state.order_history.append(
+                # đọc lại file chung rồi mới thêm, để đơn của nhiều người không ghi đè nhau
+                shared_history = load_history()
+                shared_history.append(
                     {
                         "time": st.session_state.invoice["time"],
                         "customer": customer,
@@ -347,35 +368,16 @@ with tab_order:
                         "final_amount": final_price,
                     }
                 )
-                save_history(st.session_state.order_history)
+                save_history(shared_history)
                 st.balloons()
+
+        if st.session_state.invoice:
+            show_payment_qr(st.session_state.invoice)
 
     # ---------------- HIỂN THỊ MÃ QR & HÓA ĐƠN ----------------
     inv = st.session_state.invoice
     if inv:
         st.markdown("---")
-        st.success("🎉 Đã hoàn tất tạo đơn! Vui lòng quét mã QR để chuyển khoản:")
-
-        raw_name = inv["customer"] if inv["customer"] != "Khách vãng lai" else "Khach"
-        add_info_text = f"TT {to_ascii(raw_name)}"
-        qr_url = (
-            f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-compact2.png"
-            f"?amount={inv['final']}"
-            f"&addInfo={urllib.parse.quote(add_info_text)}"
-            f"&accountName={urllib.parse.quote(ACCOUNT_NAME)}"
-        )
-
-        col_qr1, col_qr2 = st.columns([1, 1.2])
-        with col_qr1:
-            st.image(qr_url, caption="Mã QR Agribank Tự Động", **FULL_IMG)
-        with col_qr2:
-            st.markdown("### 📲 Thông Tin Chuyển Khoản")
-            st.write("🏦 **Ngân hàng:** Agribank")
-            st.write(f"💳 **Số tài khoản:** `{ACCOUNT_NO}`")
-            st.write(f"👤 **Chủ tài khoản:** {ACCOUNT_NAME}")
-            st.write(f"💰 **Số tiền thanh toán:** `{inv['final']:,} VNĐ`")
-            st.write(f"📝 **Nội dung chuyển khoản:** `{add_info_text}`")
-
         with st.container(border=True):
             st.markdown(
                 "<h2 style='text-align: center; color: #FF477E;'>🧋 HÓA ĐƠN BÁN HÀNG - MR KHẢI LỐC XOÁY</h2>",
@@ -423,10 +425,11 @@ with tab_order:
 with tab_dashboard:
     st.subheader("📈 Thống Kê Doanh Thu & Lịch Sử Bán Hàng")
 
-    if not st.session_state.order_history:
-        st.info("Chưa có đơn hàng nào trong phiên làm việc này.")
+    all_orders = load_history()   # đọc file chung: thấy cả đơn của người khác
+    if not all_orders:
+        st.info("Chưa có đơn hàng nào.")
     else:
-        df_history = pd.DataFrame(st.session_state.order_history)
+        df_history = pd.DataFrame(all_orders)
 
         m1, m2, m3 = st.columns(3)
         m1.metric("Tổng số đơn", f"{len(df_history)} đơn")
