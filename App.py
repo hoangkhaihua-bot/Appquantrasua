@@ -1,256 +1,40 @@
-import streamlit as st
-import pandas as pd
+import inspect
+import urllib.parse
 from datetime import datetime
 import os
-import urllib.parse
+
+import pandas as pd
+import streamlit as st
 
 # ---------------------------------------------------------
 # THÔNG TIN TÀI KHOẢN NGÂN HÀNG
+# (Khuyến nghị: đặt trong .streamlit/secrets.toml hoặc mục Secrets
+#  của Streamlit Cloud để không lộ số tài khoản trên GitHub công khai)
 # ---------------------------------------------------------
-BANK_ID = "VBA"                # Agribank (Mã VietQR chuẩn: VBA)
-ACCOUNT_NO = "8888889040806"   # Số tài khoản
-ACCOUNT_NAME = "HUA HOANG KHAI"# Tên chủ tài khoản
+def _secret(key, default):
+    try:
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
 
-# ---------------------------------------------------------
-# CẤU HÌNH TRANG
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="Trà Sữa Mr Khải Lốc Xoáy 🌪️🧋",
-    page_icon="🧋",
-    layout="wide"
-)
 
-# ---------------------------------------------------------
-# GIAO DIỆN MÀU SẮC GEN Z (CSS)
-# ---------------------------------------------------------
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #FFFDFB;
-    }
-    .main-title {
-        text-align: center;
-        color: #FF477E;
-        font-family: 'Inter', sans-serif;
-        font-weight: 900;
-        font-size: 2.3rem;
-        margin-bottom: 0px;
-        text-shadow: 2px 2px 4px #FFD6E0;
-    }
-    .sub-title {
-        text-align: center;
-        color: #FF70A6;
-        font-weight: 600;
-        font-size: 1.1rem;
-        margin-bottom: 15px;
-    }
-    .price-badge {
-        background: linear-gradient(135deg, #FF70A6, #FF477E);
-        color: white;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 1rem;
-        display: inline-block;
-    }
-    .card-container {
-        border: 1px solid #FFE3EC;
-        background-color: #FFFFFF;
-        border-radius: 16px;
-        padding: 12px;
-        box-shadow: 0px 4px 12px rgba(255, 71, 126, 0.08);
-        margin-bottom: 15px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+BANK_ID = _secret("BANK_ID", "VBA")                       # Agribank
+ACCOUNT_NO = _secret("ACCOUNT_NO", "8888889040806")
+ACCOUNT_NAME = _secret("ACCOUNT_NAME", "HUA HOANG KHAI")
 
 # ---------------------------------------------------------
-# MENU BẢNG GIÁ & HÌNH ẢNH
+# TƯƠNG THÍCH NHIỀU PHIÊN BẢN STREAMLIT
+# (use_container_width đã bị thay bằng width="stretch" ở bản mới)
 # ---------------------------------------------------------
-MENU_TEA = {
-    "Trà Sữa Truyền Thống": {
-        "price": 30000,
-        "category": "Trà Sữa",
-        "image": "https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Sữa Trân Châu Đường Đen": {
-        "price": 35000,
-        "category": "Trà Sữa",
-        "image": "https://images.unsplash.com/photo-1541658016709-82535e94bc69?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Sữa Thái Xanh": {
-        "price": 32000,
-        "category": "Trà Sữa",
-        "image": "https://images.unsplash.com/photo-1627522460108-212628122289?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Sữa Ô Long": {
-        "price": 35000,
-        "category": "Trà Sữa",
-        "image": "https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Sữa Matcha": {
-        "price": 38000,
-        "category": "Trà Sữa",
-        "image": "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Sữa Dâu Tây": {
-        "price": 35000,
-        "category": "Trà Trái Cây",
-        "image": "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Đào Cam Sả": {
-        "price": 35000,
-        "category": "Trà Trái Cây",
-        "image": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80"
-    },
-    "Trà Dâu Tằm Mát Lạnh": {
-        "price": 32000,
-        "category": "Trà Trái Cây",
-        "image": "https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80"
-    },
-}
+def _stretch(func):
+    try:
+        if "width" in inspect.signature(func).parameters:
+            return {"width": "stretch"}
+    except (TypeError, ValueError):
+        pass
+    return {"use_container_width": True}
 
-SIZE_OPTIONS = {"S (Vừa)": 0, "M (Lớn)": 5000, "L (Đặc biệt)": 10000}
-TOPPING_OPTIONS = {
-    "Trân châu đen 🧋": 5000,
-    "Trân châu trắng 💎": 7000,
-    "Thạch trái cây 🍓": 5000,
-    "Pudding trứng 🍮": 8000,
-    "Kem Cheese 🧀": 10000
-}
-SUGAR_LEVELS = ["100% (Bình thường)", "70%", "50%", "30%", "0% (Không đường)"]
-ICE_LEVELS = ["100% (Bình thường)", "70%", "50%", "30%", "0% (Không đá)"]
-
-if "cart" not in st.session_state:
-    st.session_state.cart = []
-if "invoice_paid" not in st.session_state:
-    st.session_state.invoice_paid = False
-if "order_history" not in st.session_state:
-    st.session_state.order_history = []
-
-def create_txt_invoice(customer_name, cart, total_amount, discount, final_amount, note):
-    now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    content = f"{'='*40}\n"
-    content += f"{'HÓA ĐƠN BÁN HÀNG - MR KHẢI LỐC XOÁY':^40}\n"
-    content += f"{'='*40}\n"
-    content += f"Thời gian: {now}\n"
-    content += f"Khách hàng: {customer_name if customer_name else 'Khách vãng lai'}\n"
-    if note:
-        content += f"Ghi chú: {note}\n"
-    content += f"{'-'*40}\n"
-    for idx, item in enumerate(cart, 1):
-        content += f"{idx}. {item['Tên món']} ({item['Size']})\n"
-        content += f"   - Đường: {item['Đường']} | Đá: {item['Đá']}\n"
-        if item['Topping'] != "Không":
-            content += f"   - Topping: {item['Topping']}\n"
-        content += f"   SL: {item['Số lượng']} x {item['Đơn giá']:,} = {item['Thành tiền']:,} VNĐ\n"
-    content += f"{'-'*40}\n"
-    content += f"Tổng tiền món: {total_amount:,} VNĐ\n"
-    content += f"Giảm giá: {discount}%\n"
-    content += f"TỔNG THANH TOÁN: {final_amount:,} VNĐ\n"
-    content += f"{'='*40}\n"
-    content += f"{'Cảm ơn bạn đã ủng hộ Mr Khải Lốc Xoáy! 💕':^40}\n"
-    return content
-
-# ---------------------------------------------------------
-# TIÊU ĐỀ & TABS NAVIGATION
-# ---------------------------------------------------------
-st.markdown("<h1 class='main-title'>🧋 TRÀ SỮA MR KHẢI LỐC XOÁY 🌪️</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>✨ Đậm vị trà - Đậm gu Gen Z ✨</p>", unsafe_allow_html=True)
-
-if os.path.exists("file_00000000d3fc8207810f0b04c88661e1.png"):
-    c_i1, c_i2, c_i3 = st.columns([1, 2, 1])
-    with c_i2:
-        st.image("file_00000000d3fc8207810f0b04c88661e1.png", use_container_width=True)
-
-tab_order, tab_dashboard = st.tabs(["🛍️ Đặt Món & Thanh Toán", "📊 Báo Cáo Doanh Thu"])
-
-# =========================================================
-# TAB 1: ĐẶT MÓN & THANH TOÁN
-# =========================================================
-with tab_order:
-    col_left, col_right = st.columns([1.25, 0.75])
-
-    # CỘT TRÁI: MENU
-    with col_left:
-        st.subheader("📋 Chọn Món Đồ Uống")
-
-        c_search, c_filter = st.columns([2, 1])
-        with c_search:
-            search_query = st.text_input("🔍 Tìm tên món:", placeholder="Ví dụ: Matcha, Thái xanh...")
-        with c_filter:
-            category_filter = st.selectbox("📂 Danh mục:", ["Tất cả", "Trà Sữa", "Trà Trái Cây"])
-
-        filtered_menu = {
-            k: v for k, v in MENU_TEA.items()
-            if (category_filter == "Tất cả" or v["category"] == category_filter)
-            and (search_query.lower() in k.lower())
-        }
-
-        if not filtered_menu:
-            st.warning("Không tìm thấy món phù hợp!")
-        else:
-            selected_tea = st.selectbox("🥤 Chọn món uống:", list(filtered_menu.keys()))
-            tea_info = MENU_TEA[selected_tea]
-
-            with st.container():
-                st.markdown("<div class='card-container'>", unsafe_allow_html=True)
-                col_pic, col_opt = st.columns([1, 1.1])
-                
-                with col_pic:
-                    st.image(tea_info["image"], caption=selected_tea, use_container_width=True)
-                with col_opt:
-                    quantity = st.number_input("🔢 Số lượng:", min_value=1, value=1, step=1)
-                    selected_size = st.selectbox("📏 Size:", list(SIZE_OPTIONS.keys()))
-                    selected_sugar = st.selectbox("🍬 Đường:", SUGAR_LEVELS)
-                    selected_ice = st.selectbox("🧊 Đá:", ICE_LEVELS)
-
-                selected_toppings = st.multiselect("✨ Topping thêm:", options=list(TOPPING_OPTIONS.keys()))
-
-                unit_price = tea_info["price"] + SIZE_OPTIONS[selected_size] + sum(TOPPING_OPTIONS[t] for t in selected_toppings)
-                item_total = unit_price * quantity
-
-                st.markdown(f"<div class='price-badge'>💡 Đơn giá: {unit_price:,} VNĐ / ly</div>", unsafe_allow_html=True)
-                st.write("")
-
-                if st.button("➕ THÊM VÀO GIỎ HÀNG", type="primary", use_container_width=True):
-                    topping_clean = [t.split()[0] + " " + t.split()[1] for t in selected_toppings]
-                    topping_str = ", ".join(topping_clean) if topping_clean else "Không"
-                    
-                    st.session_state.cart.append({
-                        "Tên món": selected_tea,
-                        "Size": selected_size.split()[0],
-                        "Đường": selected_sugar.split()[0],
-                        "Đá": selected_ice.split()[0],
-                        "Topping": topping_str,
-                        "Đơn giá": unit_price,
-                        "Số lượng": quantity,
-                        "Thành tiền": item_total
-                    })
-                    st.session_state.invoice_paid = False
-                    st.toast(f"Đã thêm **{quantity}x {selected_tea}** vào giỏ!", icon="🧋")
-                st.markdown("</div>", unsafe_allow_html=True)
-
-    # CỘT PHẢI: GIỎ HÀNG
-    with col_right:
-        st.subheader("🛒 Giỏ Hàng Mua Sắm")
-        
-        customer_name = st.text_input("👤 Tên khách hàng:", placeholder="Tên khách hàng...")
-        order_note = st.text_input("📝 Ghi chú đơn hàng:", placeholder="Ví dụ: Mang đi, Ít ngọt...")
-
-        if not st.session_state.cart:
-            st.info("Giỏ hàng đang trống!")
-        else:
-            df_cart = pd.DataFrame(st.session_state.cart)
-            st.dataframe(
-                df_cart[["Tên món", "Size", "Topping", "Số lượng", "Thành tiền"]],
-                use_container_width=True,
-                hide_index=True
-            )
-
-            if st.button("🗑️ Xóa toàn bộ giỏ hàng"):
-                st.session_state.cart = []
-                st.session_state.invoice_paid = False
+d = False
                 st.rerun()
 
             st.markdown("---")
